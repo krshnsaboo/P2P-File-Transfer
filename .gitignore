@@ -1,0 +1,27 @@
+# Build artifacts and binaries
+tracker/tracker
+client/client
+*.o
+*.out
+*.exe
+
+# Downloaded files and test files
+/downloads/
+/test_data/
+/test_files/
+*.log
+
+# System and editor files
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/
+
+# Tracking and notes
+CHECKPOINTS.md
+checkpoints.md
+
+# Assignment documents
+*.pdf
+AOS_Assignment_3.pdf
