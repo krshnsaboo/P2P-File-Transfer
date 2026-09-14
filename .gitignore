@@ -21,6 +21,8 @@ client/client
 # Tracking and notes
 CHECKPOINTS.md
 checkpoints.md
+WORK_LOG.md
+work_log.md
 
 # Assignment documents
 *.pdf
