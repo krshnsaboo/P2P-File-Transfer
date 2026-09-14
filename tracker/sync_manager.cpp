@@ -138,8 +138,9 @@ void SyncManager::process_sync_message(const std::string &msg, int source_fd) {
     if (cmd == Protocol::CMD_SYNC_MUTATION || cmd == Protocol::CMD_SYNC_REPLAY) {
         if (tokens.size() < 3) return;
 
+        uint64_t seq = 0;
         try {
-            uint64_t seq = std::stoull(tokens[1]);
+            seq = std::stoull(tokens[1]);
             uint64_t prev = last_received_seq_id_.load();
             if (seq > prev) {
                 last_received_seq_id_.store(seq);
@@ -153,6 +154,15 @@ void SyncManager::process_sync_message(const std::string &msg, int source_fd) {
         for (size_t i = 2; i < tokens.size(); ++i) {
             if (i > 2) mutation += " ";
             mutation += tokens[i];
+        }
+
+        // Record into local WAL log so we can replay to other trackers on recovery
+        {
+            std::lock_guard<std::mutex> lock(log_mutex_);
+            event_log_.push_back({seq, mutation});
+            if (seq > current_seq_id_) {
+                current_seq_id_ = seq;
+            }
         }
 
         apply_mutation(mutation);
