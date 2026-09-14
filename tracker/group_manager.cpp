@@ -159,3 +159,49 @@ bool GroupManager::group_exists(const std::string &group_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     return groups_.find(group_id) != groups_.end();
 }
+
+void GroupManager::apply_sync_create_group(const std::string &group_id, const std::string &owner_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (groups_.find(group_id) == groups_.end()) {
+        Group g;
+        g.group_id = group_id;
+        g.owner_id = owner_id;
+        g.members.insert(owner_id);
+        groups_[group_id] = g;
+    }
+}
+
+void GroupManager::apply_sync_join_group(const std::string &group_id, const std::string &user_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = groups_.find(group_id);
+    if (it != groups_.end()) {
+        if (it->second.members.find(user_id) == it->second.members.end()) {
+            it->second.pending_requests.insert(user_id);
+        }
+    }
+}
+
+void GroupManager::apply_sync_accept_request(const std::string &group_id, const std::string &user_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = groups_.find(group_id);
+    if (it != groups_.end()) {
+        it->second.pending_requests.erase(user_id);
+        it->second.members.insert(user_id);
+    }
+}
+
+void GroupManager::apply_sync_leave_group(const std::string &group_id, const std::string &user_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = groups_.find(group_id);
+    if (it != groups_.end()) {
+        it->second.members.erase(user_id);
+        if (it->second.owner_id == user_id) {
+            if (it->second.members.empty()) {
+                groups_.erase(it);
+            } else {
+                it->second.owner_id = *it->second.members.begin();
+            }
+        }
+    }
+}
+
