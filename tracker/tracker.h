@@ -8,6 +8,9 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "user_manager.h"
+#include "group_manager.h"
+
 struct TrackerEndpoint {
     std::string ip;
     int port;
@@ -35,6 +38,9 @@ private:
     std::thread console_thread_;
     std::vector<std::thread> client_threads_;
     std::mutex client_threads_mutex_;
+
+    UserManager user_mgr_;
+    GroupManager group_mgr_;
 
     bool parse_config();
     void console_loop();
