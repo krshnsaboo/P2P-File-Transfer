@@ -168,18 +168,152 @@ void TrackerServer::handle_client(int client_fd) {
         }
     }
 
+    // Auto-logout user session on socket disconnect
+    user_mgr_.logout_by_fd(client_fd);
     ::close(client_fd);
 }
 
-std::string TrackerServer::process_command(const std::string &raw_cmd, int /*client_fd*/) {
+std::string TrackerServer::process_command(const std::string &raw_cmd, int client_fd) {
     std::vector<std::string> tokens = NetworkUtils::split_string(raw_cmd, ' ');
     if (tokens.empty()) return "";
 
     const std::string &cmd = tokens[0];
 
+    // --- System / Test Commands ---
     if (cmd == Protocol::CMD_PING) {
         return std::string(Protocol::RES_SUCCESS) + " PONG";
     }
 
-    return std::string(Protocol::RES_ERROR) + " Command '" + cmd + "' not implemented yet in Phase 1";
+    // --- User Management Commands ---
+    if (cmd == Protocol::CMD_CREATE_USER) {
+        if (tokens.size() != 3) {
+            return std::string(Protocol::RES_ERROR) + " Usage: create_user <user_id> <password>";
+        }
+        std::string err;
+        if (user_mgr_.create_user(tokens[1], tokens[2], err)) {
+            return std::string(Protocol::RES_SUCCESS) + " User '" + tokens[1] + "' registered successfully";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_LOGIN) {
+        if (tokens.size() != 3) {
+            return std::string(Protocol::RES_ERROR) + " Usage: login <user_id> <password>";
+        }
+        std::string err;
+        if (user_mgr_.login(tokens[1], tokens[2], client_fd, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " User '" + tokens[1] + "' logged in successfully";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_LOGOUT) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " You are not logged in";
+        }
+        std::string err;
+        if (user_mgr_.logout(user_id, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " User '" + user_id + "' logged out successfully";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    // --- Group Management Commands ---
+    if (cmd == Protocol::CMD_CREATE_GROUP) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " Please login first";
+        }
+        if (tokens.size() != 2) {
+            return std::string(Protocol::RES_ERROR) + " Usage: create_group <group_id>";
+        }
+        std::string err;
+        if (group_mgr_.create_group(tokens[1], user_id, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " Group '" + tokens[1] + "' created successfully";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_JOIN_GROUP) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " Please login first";
+        }
+        if (tokens.size() != 2) {
+            return std::string(Protocol::RES_ERROR) + " Usage: join_group <group_id>";
+        }
+        std::string err;
+        if (group_mgr_.join_group(tokens[1], user_id, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " Join request submitted for group '" + tokens[1] + "'";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_LEAVE_GROUP) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " Please login first";
+        }
+        if (tokens.size() != 2) {
+            return std::string(Protocol::RES_ERROR) + " Usage: leave_group <group_id>";
+        }
+        std::string err;
+        if (group_mgr_.leave_group(tokens[1], user_id, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " Left group '" + tokens[1] + "' successfully";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_LIST_GROUPS) {
+        auto groups = group_mgr_.list_groups();
+        if (groups.empty()) {
+            return std::string(Protocol::RES_SUCCESS) + " No groups exist in the network";
+        }
+        std::string res = std::string(Protocol::RES_SUCCESS) + " Groups:";
+        for (const auto &g : groups) {
+            res += " " + g;
+        }
+        return res;
+    }
+
+    if (cmd == Protocol::CMD_LIST_REQUESTS) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " Please login first";
+        }
+        if (tokens.size() != 2) {
+            return std::string(Protocol::RES_ERROR) + " Usage: list_requests <group_id>";
+        }
+        std::vector<std::string> reqs;
+        std::string err;
+        if (group_mgr_.list_requests(tokens[1], user_id, reqs, err)) {
+            if (reqs.empty()) {
+                return std::string(Protocol::RES_SUCCESS) + " No pending requests for group '" + tokens[1] + "'";
+            }
+            std::string res = std::string(Protocol::RES_SUCCESS) + " Pending requests:";
+            for (const auto &u : reqs) {
+                res += " " + u;
+            }
+            return res;
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    if (cmd == Protocol::CMD_ACCEPT_REQUEST) {
+        std::string user_id = user_mgr_.get_user_by_fd(client_fd);
+        if (user_id.empty()) {
+            return std::string(Protocol::RES_ERROR) + " Please login first";
+        }
+        if (tokens.size() != 3) {
+            return std::string(Protocol::RES_ERROR) + " Usage: accept_request <group_id> <user_id>";
+        }
+        std::string err;
+        if (group_mgr_.accept_request(tokens[1], tokens[2], user_id, err)) {
+            return std::string(Protocol::RES_SUCCESS) + " User '" + tokens[2] + "' accepted into group '" + tokens[1] + "'";
+        }
+        return std::string(Protocol::RES_ERROR) + " " + err;
+    }
+
+    return std::string(Protocol::RES_ERROR) + " Unknown command '" + cmd + "'";
 }
