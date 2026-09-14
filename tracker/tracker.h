@@ -8,8 +8,11 @@
 #include <mutex>
 #include <unordered_map>
 
+#include <memory>
+
 #include "user_manager.h"
 #include "group_manager.h"
+#include "sync_manager.h"
 
 struct TrackerEndpoint {
     std::string ip;
@@ -41,6 +44,7 @@ private:
 
     UserManager user_mgr_;
     GroupManager group_mgr_;
+    std::unique_ptr<SyncManager> sync_mgr_;
 
     bool parse_config();
     void console_loop();
