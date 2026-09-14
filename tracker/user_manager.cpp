@@ -115,3 +115,16 @@ bool UserManager::user_exists(const std::string &user_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     return users_.find(user_id) != users_.end();
 }
+
+void UserManager::apply_sync_create_user(const std::string &user_id, const std::string &password) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (users_.find(user_id) == users_.end()) {
+        User u;
+        u.user_id = user_id;
+        u.password = password;
+        u.is_logged_in = false;
+        u.session_fd = -1;
+        users_[user_id] = u;
+    }
+}
+
