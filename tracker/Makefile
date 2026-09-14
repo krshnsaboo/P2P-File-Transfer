@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++17 -pthread -O2
 INCLUDES = -I. -I../common
 
-SRCS = main.cpp tracker.cpp ../common/network_utils.cpp
+SRCS = main.cpp tracker.cpp user_manager.cpp group_manager.cpp ../common/network_utils.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = tracker
 
