@@ -37,6 +37,9 @@ public:
     // Check if user exists in the system
     bool user_exists(const std::string &user_id);
 
+    // Apply synchronized user creation from peer tracker
+    void apply_sync_create_user(const std::string &user_id, const std::string &password);
+
 private:
     mutable std::mutex mutex_;
     std::unordered_map<std::string, User> users_;          // user_id -> User
