@@ -45,6 +45,12 @@ public:
     // Existence check
     bool group_exists(const std::string &group_id);
 
+    // Synchronized mutators from peer tracker
+    void apply_sync_create_group(const std::string &group_id, const std::string &owner_id);
+    void apply_sync_join_group(const std::string &group_id, const std::string &user_id);
+    void apply_sync_accept_request(const std::string &group_id, const std::string &user_id);
+    void apply_sync_leave_group(const std::string &group_id, const std::string &user_id);
+
 private:
     mutable std::mutex mutex_;
     std::unordered_map<std::string, Group> groups_; // group_id -> Group
