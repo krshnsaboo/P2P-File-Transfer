@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <chrono>
 
 SyncManager::SyncManager(int my_tracker_no, const std::string &peer_ip, int peer_port,
