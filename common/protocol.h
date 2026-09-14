@@ -31,6 +31,12 @@ namespace Protocol {
 
     // Tracker sync internal commands
     constexpr const char* SYNC_PREFIX = "SYNC_";
+    constexpr const char* CMD_SYNC_HANDSHAKE = "SYNC_HANDSHAKE";
+    constexpr const char* CMD_SYNC_MUTATION = "SYNC_MUTATION";
+    constexpr const char* CMD_SYNC_RECOVER = "SYNC_RECOVER";
+    constexpr const char* CMD_SYNC_REPLAY = "SYNC_REPLAY";
+    constexpr const char* CMD_SYNC_REPLAY_DONE = "SYNC_REPLAY_DONE";
+    constexpr const char* CMD_SYNC_HEARTBEAT = "SYNC_HEARTBEAT";
     constexpr const char* SYNC_ACK = "SYNC_ACK";
 
     // Status responses
