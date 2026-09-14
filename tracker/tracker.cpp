@@ -74,6 +74,9 @@ bool TrackerServer::init() {
         return false;
     }
 
+    sync_mgr_ = std::make_unique<SyncManager>(tracker_no_, peer_endpoint_.ip, peer_endpoint_.port, user_mgr_, group_mgr_);
+    sync_mgr_->start();
+
     running_ = true;
     return true;
 }
@@ -131,6 +134,10 @@ void TrackerServer::shutdown() {
         return; // Already shutting down
     }
 
+    if (sync_mgr_) {
+        sync_mgr_->stop();
+    }
+
     if (server_socket_ >= 0) {
         ::shutdown(server_socket_, SHUT_RDWR);
         ::close(server_socket_);
@@ -179,6 +186,14 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
 
     const std::string &cmd = tokens[0];
 
+    // --- Tracker Internal Synchronization Commands ---
+    if (cmd.rfind(Protocol::SYNC_PREFIX, 0) == 0) {
+        if (sync_mgr_) {
+            sync_mgr_->process_sync_message(raw_cmd, client_fd);
+        }
+        return "";
+    }
+
     // --- System / Test Commands ---
     if (cmd == Protocol::CMD_PING) {
         return std::string(Protocol::RES_SUCCESS) + " PONG";
@@ -191,6 +206,9 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
         }
         std::string err;
         if (user_mgr_.create_user(tokens[1], tokens[2], err)) {
+            if (sync_mgr_) {
+                sync_mgr_->record_and_broadcast("create_user " + tokens[1] + " " + tokens[2]);
+            }
             return std::string(Protocol::RES_SUCCESS) + " User '" + tokens[1] + "' registered successfully";
         }
         return std::string(Protocol::RES_ERROR) + " " + err;
@@ -230,6 +248,9 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
         }
         std::string err;
         if (group_mgr_.create_group(tokens[1], user_id, err)) {
+            if (sync_mgr_) {
+                sync_mgr_->record_and_broadcast("create_group " + tokens[1] + " " + user_id);
+            }
             return std::string(Protocol::RES_SUCCESS) + " Group '" + tokens[1] + "' created successfully";
         }
         return std::string(Protocol::RES_ERROR) + " " + err;
@@ -245,6 +266,9 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
         }
         std::string err;
         if (group_mgr_.join_group(tokens[1], user_id, err)) {
+            if (sync_mgr_) {
+                sync_mgr_->record_and_broadcast("join_group " + tokens[1] + " " + user_id);
+            }
             return std::string(Protocol::RES_SUCCESS) + " Join request submitted for group '" + tokens[1] + "'";
         }
         return std::string(Protocol::RES_ERROR) + " " + err;
@@ -260,6 +284,9 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
         }
         std::string err;
         if (group_mgr_.leave_group(tokens[1], user_id, err)) {
+            if (sync_mgr_) {
+                sync_mgr_->record_and_broadcast("leave_group " + tokens[1] + " " + user_id);
+            }
             return std::string(Protocol::RES_SUCCESS) + " Left group '" + tokens[1] + "' successfully";
         }
         return std::string(Protocol::RES_ERROR) + " " + err;
@@ -310,6 +337,9 @@ std::string TrackerServer::process_command(const std::string &raw_cmd, int clien
         }
         std::string err;
         if (group_mgr_.accept_request(tokens[1], tokens[2], user_id, err)) {
+            if (sync_mgr_) {
+                sync_mgr_->record_and_broadcast("accept_request " + tokens[1] + " " + tokens[2]);
+            }
             return std::string(Protocol::RES_SUCCESS) + " User '" + tokens[2] + "' accepted into group '" + tokens[1] + "'";
         }
         return std::string(Protocol::RES_ERROR) + " " + err;
