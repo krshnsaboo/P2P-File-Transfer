@@ -214,6 +214,15 @@ void ClientApp::handle_local_command(const std::string &cmd_line) {
     // Forward to tracker
     std::string res = send_tracker_command(cmd_line);
     std::cout << res << std::endl;
+
+    // Synchronize client session state on successful login or logout
+    if (res.rfind(Protocol::RES_SUCCESS, 0) == 0) {
+        if (cmd == Protocol::CMD_LOGIN && tokens.size() >= 2) {
+            logged_in_user_ = tokens[1];
+        } else if (cmd == Protocol::CMD_LOGOUT) {
+            logged_in_user_.clear();
+        }
+    }
 }
 
 void ClientApp::shutdown() {
